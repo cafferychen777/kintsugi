@@ -1,0 +1,40 @@
+# Local research assets (not published to GitHub)
+data/
+exp/
+figures/
+ms/
+scripts/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+texput.log
+
+# Python
+__pycache__/
+*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+dist/
+build/
+.venv/
+.coverage
+.coverage.*
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# OS
+.DS_Store
