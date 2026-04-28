@@ -171,3 +171,39 @@ def test_validate_grid_data_rejects_negative_counts() -> None:
     with pytest.raises(ValueError, match="finite non-negative"):
         grid = GridData(counts, rows=2, cols=1)
         validate_grid_data(grid)
+
+
+def test_grid_data_rejects_non_integral_dimensions_before_mask_allocation() -> None:
+    counts = sp.csr_matrix(np.ones((4, 1), dtype=float))
+
+    with pytest.raises(TypeError, match="rows must be a positive integer"):
+        GridData(counts, rows=2.5, cols=2)
+    with pytest.raises(TypeError, match="cols must be a positive integer"):
+        GridData(counts, rows=2, cols="2")
+
+
+def test_grid_data_rejects_boolean_dimensions() -> None:
+    counts = sp.csr_matrix(np.ones((1, 1), dtype=float))
+
+    with pytest.raises(TypeError, match="rows must be a positive integer"):
+        GridData(counts, rows=True, cols=1)
+
+
+def test_tessellation_result_requires_sparse_adjacency() -> None:
+    with pytest.raises(TypeError, match="adjacency must be a SciPy sparse matrix"):
+        from kintsugi.models import TessellationResult
+
+        TessellationResult(
+            labels=np.zeros((1, 1), dtype=np.int32),
+            residuals=np.zeros((1, 1), dtype=float),
+            areas=np.ones(1, dtype=float),
+            depths=np.ones(1, dtype=float),
+            centroids=np.zeros((1, 2), dtype=float),
+            adjacency=np.zeros((1, 1), dtype=np.uint8),
+            trace=np.zeros((1, 1), dtype=float),
+        )
+
+
+def test_boundary_tensor_requires_four_direction_input() -> None:
+    with pytest.raises(ValueError, match=r"shape \(R, C, 4\)"):
+        boundary_tensor(np.zeros((2, 2, 3), dtype=float))

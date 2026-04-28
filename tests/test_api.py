@@ -176,3 +176,9 @@ def test_tessellate_all_false_mask_returns_empty_region_outputs() -> None:
     assert result["depths"].shape == (0,)
     assert result["centroids"].shape == (0, 2)
     assert result["adjacency"].shape == (0, 0)
+
+
+def test_lazy_top_level_exports_remain_available() -> None:
+    assert kintsugi.GridData.__name__ == "GridData"
+    assert kintsugi.build_regular_grid.__name__ == "build_regular_grid"
+    assert kintsugi.poisson_log_variance(1.0) > 0.0

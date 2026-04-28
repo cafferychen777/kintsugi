@@ -57,10 +57,12 @@ def aggregate_counts(
             f"Count matrix has {counts.shape[0]} rows but label grid has "
             f"{N} bins ({R} x {C})."
         )
-    if mask is not None and mask.shape != labels.shape:
-        raise ValueError(
-            f"mask has shape {mask.shape}, expected {labels.shape}."
-        )
+    if mask is not None:
+        mask = np.asarray(mask, dtype=bool)
+        if mask.shape != labels.shape:
+            raise ValueError(
+                f"mask has shape {mask.shape}, expected {labels.shape}."
+            )
 
     flat_labels = labels.ravel()  # (N,)
 

@@ -15,7 +15,6 @@ from ._poisson_log_var import poisson_log_variance
 def directional_semivariance(
     umi: np.ndarray,
     lag: int = 2,
-    directions: int = 4,
     smooth_halfwidth: int = 3,
     mask: np.ndarray | None = None,
 ) -> np.ndarray:
@@ -27,8 +26,6 @@ def directional_semivariance(
         Total UMI counts per bin on the regular lattice.
     lag : int
         Lag in bin units (default 2 = 4 um on a 2 um grid).
-    directions : int
-        Number of equispaced directions in [0, pi). Must be 4.
     smooth_halfwidth : int
         Half-width of the uniform smoothing window applied to raw
         pointwise semivariance (actual window is 2*smooth_halfwidth + 1).
@@ -42,9 +39,6 @@ def directional_semivariance(
     excess : ndarray, shape (R, C, D)
         Excess semivariance per direction, clipped to non-negative.
     """
-    if directions != 4:
-        raise ValueError("Only 4 directions (0, 45, 90, 135 deg) supported.")
-
     z = np.log1p(umi.astype(np.float64))
     R, C = z.shape
 
@@ -56,16 +50,10 @@ def directional_semivariance(
         z[~mask] = tissue_median
 
     h = lag
-
-    # Direction shifts: (row_offset, col_offset) for 0, 45, 90, 135 degrees.
-    # 0 deg  = east      -> (0, +h)
-    # 45 deg = northeast -> (-h, +h)
-    # 90 deg = north     -> (-h, 0)
-    # 135 deg= northwest -> (-h, -h)
     shifts = [(0, h), (-h, h), (-h, 0), (-h, -h)]
 
     window = 2 * smooth_halfwidth + 1
-    excess = np.zeros((R, C, directions), dtype=np.float64)
+    excess = np.zeros((R, C, len(shifts)), dtype=np.float64)
 
     gamma0 = poisson_baseline(umi, smooth_halfwidth=smooth_halfwidth, mask=mask)
 

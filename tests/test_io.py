@@ -63,6 +63,13 @@ def test_build_regular_grid_rejects_occupied_coordinates_outside_mask() -> None:
         )
 
 
+def test_build_regular_grid_rejects_non_integral_extent() -> None:
+    counts = sp.csr_matrix(np.array([[1.0]], dtype=float))
+
+    with pytest.raises(TypeError, match="rows must be a positive integer"):
+        kintsugi.build_regular_grid(counts, [0], [0], rows=1.2, cols=1)
+
+
 def test_parse_visium_barcode_coordinates_reads_trailing_indices() -> None:
     rows, cols = kintsugi.parse_visium_barcode_coordinates(
         ["s_008um_00012_00034-1", "prefix_anything_7_9-1"]
@@ -70,6 +77,11 @@ def test_parse_visium_barcode_coordinates_reads_trailing_indices() -> None:
 
     assert np.array_equal(rows, [12, 7])
     assert np.array_equal(cols, [34, 9])
+
+
+def test_parse_visium_barcode_coordinates_rejects_missing_coordinates() -> None:
+    with pytest.raises(ValueError, match="trailing row/col"):
+        kintsugi.parse_visium_barcode_coordinates(["badbarcode"])
 
 
 def test_load_visium_hd_reads_h5_and_csv(tmp_path: Path) -> None:
@@ -206,6 +218,26 @@ def test_read_tissue_positions_accepts_legacy_10x_csv_layout(tmp_path: Path) -> 
     assert frame["array_row"].tolist() == [2, 4]
     assert frame["array_col"].tolist() == [3, 5]
     assert frame["in_tissue"].tolist() == [1, 0]
+
+
+def test_read_tissue_positions_reads_header_csv_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tissue_positions_path = tmp_path / "tissue_positions.csv"
+    tissue_positions_path.write_text("array_row,array_col,in_tissue\n0,1,1\n")
+
+    calls = []
+    original_read_csv = pandas.read_csv
+
+    def read_csv_once(*args, **kwargs):
+        calls.append((args, kwargs))
+        return original_read_csv(*args, **kwargs)
+
+    monkeypatch.setattr(pandas, "read_csv", read_csv_once)
+
+    frame = kintsugi.read_tissue_positions(tissue_positions_path)
+
+    assert frame["array_row"].tolist() == [0]
+    assert len(calls) == 1
+    assert calls[0][1]["header"] == 0
 
 
 def _write_10x_h5(

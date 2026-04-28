@@ -12,7 +12,6 @@ import numpy as np
 
 def boundary_tensor(
     excess_semivar: np.ndarray,
-    directions: int = 4,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Compute the boundary tensor and its eigendecomposition.
 
@@ -20,9 +19,6 @@ def boundary_tensor(
     ----------
     excess_semivar : ndarray, shape (R, C, D)
         Excess semivariance per direction from ``directional_semivariance``.
-    directions : int
-        Number of equispaced directions in [0, pi). Must match axis 2.
-
     Returns
     -------
     trace : ndarray, shape (R, C)
@@ -34,36 +30,24 @@ def boundary_tensor(
     evec1 : ndarray, shape (R, C, 2)
         Unit eigenvector corresponding to lambda1.
     """
-    if excess_semivar.shape[2] != directions:
-        raise ValueError(
-            f"Expected {directions} directions, got {excess_semivar.shape[2]}."
-        )
-    if directions != 4:
-        raise ValueError("Only 4 directions supported.")
+    if excess_semivar.ndim != 3 or excess_semivar.shape[2] != 4:
+        raise ValueError("excess_semivar must have shape (R, C, 4).")
 
     R, C, D = excess_semivar.shape
-
-    # Direction angles: 0, pi/4, pi/2, 3pi/4
     angles = np.arange(D) * (np.pi / D)
     cos_a = np.cos(angles)  # (D,)
     sin_a = np.sin(angles)  # (D,)
 
-    # Outer product components for each direction:
-    # e_theta (x) e_theta = [[cos^2, cos*sin], [cos*sin, sin^2]]
-    cc = cos_a * cos_a  # (D,)
-    ss = sin_a * sin_a  # (D,)
-    cs = cos_a * sin_a  # (D,)
+    cc = cos_a * cos_a
+    ss = sin_a * sin_a
+    cs = cos_a * sin_a
 
-    # Sum over directions: T_ij(r, c) = sum_d excess(r, c, d) * component_d
-    # excess_semivar is (R, C, D), components are (D,), broadcast via dot.
-    T_xx = np.dot(excess_semivar, cc)  # (R, C)
-    T_yy = np.dot(excess_semivar, ss)  # (R, C)
-    T_xy = np.dot(excess_semivar, cs)  # (R, C)
+    T_xx = np.dot(excess_semivar, cc)
+    T_yy = np.dot(excess_semivar, ss)
+    T_xy = np.dot(excess_semivar, cs)
 
     trace = T_xx + T_yy
 
-    # Eigenvalues of 2x2 symmetric matrix [[a, b], [b, c]]:
-    # lambda = (a+c)/2 +/- sqrt(((a-c)/2)^2 + b^2)
     half_diff = 0.5 * (T_xx - T_yy)
     discriminant = np.sqrt(half_diff * half_diff + T_xy * T_xy)
 
@@ -71,17 +55,14 @@ def boundary_tensor(
     lambda1 = half_sum + discriminant
     lambda2 = half_sum - discriminant
 
-    # Eigenvector for lambda1: (T_xy, lambda1 - T_xx) normalized.
-    # When T_xy ~ 0 and T_xx >= T_yy, the eigenvector is (1, 0).
     ev_x = T_xy
     ev_y = lambda1 - T_xx
 
     norm = np.sqrt(ev_x * ev_x + ev_y * ev_y)
-    # Handle degenerate case (isotropic or zero tensor).
     degen = norm < 1e-15
     ev_x = np.where(degen, 1.0, ev_x / np.maximum(norm, 1e-15))
     ev_y = np.where(degen, 0.0, ev_y / np.maximum(norm, 1e-15))
 
-    evec1 = np.stack([ev_x, ev_y], axis=-1)  # (R, C, 2)
+    evec1 = np.stack([ev_x, ev_y], axis=-1)
 
     return trace, lambda1, lambda2, evec1

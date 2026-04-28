@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
 
-from ..models import GridData
+from ..models import GridData, _validate_positive_int
 
 
 def parse_visium_barcode_coordinates(
@@ -20,14 +20,16 @@ def parse_visium_barcode_coordinates(
     cols = np.empty(barcode_array.shape[0], dtype=np.int64)
 
     for i, barcode in enumerate(barcode_array):
-        parts = barcode.split("_")
-        if len(parts) < 2:
+        try:
+            _prefix, row_text, col_suffix = barcode.rsplit("_", 2)
+        except ValueError as exc:
             raise ValueError(
                 f"barcode {barcode!r} does not contain trailing row/col coordinates."
-            )
+            ) from exc
+        col_text = col_suffix.split("-", 1)[0]
         try:
-            rows[i] = int(parts[-2])
-            cols[i] = int(parts[-1].split("-")[0])
+            rows[i] = int(row_text)
+            cols[i] = int(col_text)
         except ValueError as exc:
             raise ValueError(
                 f"barcode {barcode!r} does not encode integer row/col coordinates."
@@ -50,7 +52,7 @@ def build_regular_grid(
     if not sp.issparse(counts):
         raise TypeError("counts must be a SciPy sparse matrix.")
 
-    counts = counts.tocsr() if not sp.isspmatrix_csr(counts) else counts.copy()
+    counts = counts.copy() if sp.isspmatrix_csr(counts) else counts.tocsr()
     counts.sum_duplicates()
 
     row_coords = _normalize_coords("row_coords", row_coords)
@@ -126,9 +128,7 @@ def _infer_extent(
     axis: int,
 ) -> int:
     if value is not None:
-        if value <= 0:
-            raise ValueError(f"{name} must be a positive integer.")
-        return int(value)
+        return _validate_positive_int(name, value)
 
     if mask is not None:
         return int(mask.shape[axis])

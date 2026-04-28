@@ -19,12 +19,34 @@ _RESULT_KEYS = (
 )
 
 
+def _validate_positive_int(name: str, value: int) -> int:
+    if isinstance(value, bool):
+        raise TypeError(f"{name} must be a positive integer.")
+    if not isinstance(value, (int, np.integer)):
+        raise TypeError(f"{name} must be a positive integer.")
+    value = int(value)
+    if value <= 0:
+        raise ValueError(f"{name} must be a positive integer.")
+    return value
+
+
+def _normalize_mask(mask: np.ndarray | None, shape: tuple[int, int]) -> np.ndarray:
+    if mask is None:
+        return np.ones(shape, dtype=bool)
+    mask = np.asarray(mask, dtype=bool)
+    if mask.shape != shape:
+        raise ValueError(f"mask has shape {mask.shape}, expected {shape}.")
+    return mask
+
+
 def validate_grid_data(data: "GridData") -> None:
     """Validate the normalized grid contract expected by Kintsugi."""
     if not sp.issparse(data.counts):
         raise TypeError("counts must be a SciPy sparse matrix.")
-    if data.rows <= 0 or data.cols <= 0:
-        raise ValueError("rows and cols must both be positive integers.")
+    rows = _validate_positive_int("rows", data.rows)
+    cols = _validate_positive_int("cols", data.cols)
+    if data.rows != rows or data.cols != cols:
+        raise TypeError("rows and cols must both be positive integers.")
     if data.counts.shape[0] != data.rows * data.cols:
         raise ValueError(
             f"counts has {data.counts.shape[0]} rows, expected "
@@ -59,19 +81,18 @@ class GridData:
     gene_names: np.ndarray | None = None
 
     def __post_init__(self) -> None:
+        rows = _validate_positive_int("rows", self.rows)
+        cols = _validate_positive_int("cols", self.cols)
+        object.__setattr__(self, "rows", rows)
+        object.__setattr__(self, "cols", cols)
+
         if not sp.issparse(self.counts):
             raise TypeError("counts must be a SciPy sparse matrix.")
 
-        counts = self.counts.tocsr() if not sp.isspmatrix_csr(self.counts) else self.counts
+        counts = self.counts if sp.isspmatrix_csr(self.counts) else self.counts.tocsr()
         counts.sum_duplicates()
         object.__setattr__(self, "counts", counts)
-
-        mask = (
-            np.ones((self.rows, self.cols), dtype=bool)
-            if self.mask is None
-            else np.asarray(self.mask, dtype=bool)
-        )
-        object.__setattr__(self, "mask", mask)
+        object.__setattr__(self, "mask", _normalize_mask(self.mask, (rows, cols)))
 
         gene_names = None
         if self.gene_names is not None:
@@ -125,11 +146,9 @@ class TessellationResult(Mapping[str, object]):
     trace: np.ndarray
 
     def __post_init__(self) -> None:
-        adjacency = (
-            self.adjacency.tocsr()
-            if sp.issparse(self.adjacency) and not sp.isspmatrix_csr(self.adjacency)
-            else self.adjacency
-        )
+        if not sp.issparse(self.adjacency):
+            raise TypeError("adjacency must be a SciPy sparse matrix.")
+        adjacency = self.adjacency if sp.isspmatrix_csr(self.adjacency) else self.adjacency.tocsr()
         object.__setattr__(self, "adjacency", adjacency)
 
         if self.labels.ndim != 2 or self.trace.shape != self.labels.shape:

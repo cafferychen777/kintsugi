@@ -53,28 +53,39 @@ def load_visium_hd_from_dir(
     if not matrix_path.exists():
         raise FileNotFoundError(f"matrix file not found: {matrix_path}")
 
-    if tissue_positions_filename is not None:
-        tissue_positions_path = directory / tissue_positions_filename
-        if not tissue_positions_path.exists():
-            raise FileNotFoundError(f"tissue_positions file not found: {tissue_positions_path}")
-    else:
-        candidates = [
-            directory / "spatial" / "tissue_positions.parquet",
-            directory / "spatial" / "tissue_positions.csv",
-            directory / "spatial" / "tissue_positions_list.csv",
-            directory / "tissue_positions.parquet",
-            directory / "tissue_positions.csv",
-            directory / "tissue_positions_list.csv",
-        ]
-        matches = [path for path in candidates if path.exists()]
-        if not matches:
-            raise FileNotFoundError(
-                "could not find a tissue_positions file; checked: "
-                + ", ".join(str(path) for path in candidates)
-            )
-        tissue_positions_path = matches[0]
-
+    tissue_positions_path = _resolve_tissue_positions_path(
+        directory,
+        tissue_positions_filename,
+    )
     return load_visium_hd(matrix_path, tissue_positions_path)
+
+
+def _resolve_tissue_positions_path(
+    directory: Path,
+    filename: str | None,
+) -> Path:
+    if filename is not None:
+        path = directory / filename
+        if not path.exists():
+            raise FileNotFoundError(f"tissue_positions file not found: {path}")
+        return path
+
+    candidates = [
+        directory / "spatial" / "tissue_positions.parquet",
+        directory / "spatial" / "tissue_positions.csv",
+        directory / "spatial" / "tissue_positions_list.csv",
+        directory / "tissue_positions.parquet",
+        directory / "tissue_positions.csv",
+        directory / "tissue_positions_list.csv",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError(
+        "could not find a tissue_positions file; checked: "
+        + ", ".join(str(path) for path in candidates)
+    )
 
 
 def load_10x_feature_matrix(
@@ -88,11 +99,18 @@ def load_10x_feature_matrix(
         data = handle["matrix/data"][()]
         indices = handle["matrix/indices"][()]
         indptr = handle["matrix/indptr"][()]
-        barcodes = np.array([value.decode() for value in handle["matrix/barcodes"][()]])
-        gene_names = np.array([value.decode() for value in handle["matrix/features/name"][()]])
+        barcodes = _decode_h5_strings(handle["matrix/barcodes"][()])
+        gene_names = _decode_h5_strings(handle["matrix/features/name"][()])
 
     csc = sp.csc_matrix((data, indices, indptr), shape=(int(shape[0]), int(shape[1])))
     return csc.T.tocsr(), barcodes, gene_names
+
+
+def _decode_h5_strings(values) -> np.ndarray:
+    return np.array([
+        value.decode() if isinstance(value, bytes) else str(value)
+        for value in values
+    ])
 
 
 def read_tissue_positions(path: str | Path):
@@ -103,9 +121,8 @@ def read_tissue_positions(path: str | Path):
     if path.suffix == ".parquet":
         frame = pandas.read_parquet(path)
     elif path.suffix == ".csv":
-        frame = pandas.read_csv(path)
+        frame = pandas.read_csv(path, header=0 if _csv_has_header(path) else None)
         if not {"array_row", "array_col", "in_tissue"}.issubset(frame.columns):
-            frame = pandas.read_csv(path, header=None)
             if frame.shape[1] < 4:
                 raise ValueError(
                     "CSV tissue_positions files must either include array_row/array_col/"
@@ -128,6 +145,13 @@ def read_tissue_positions(path: str | Path):
         raise ValueError(f"tissue positions table is missing required columns: {missing}")
 
     return frame
+
+
+def _csv_has_header(path: Path) -> bool:
+    with path.open("r", encoding="utf-8") as handle:
+        first_line = handle.readline().strip()
+    columns = {column.strip() for column in first_line.split(",")}
+    return {"array_row", "array_col", "in_tissue"}.issubset(columns)
 
 
 def _require_optional_dependency(module_name: str):

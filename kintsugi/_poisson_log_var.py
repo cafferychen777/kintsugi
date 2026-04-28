@@ -1,4 +1,4 @@
-"""Exact Poisson-log variance: Var[log(N+1)] for N ~ Poisson(lambda).
+"""Poisson-log variance: Var[log(N+1)] for N ~ Poisson(lambda).
 
 The trigamma function psi^(1)(lambda+1) equals Var[log(X)] for
 X ~ Gamma(lambda+1, 1), which is a continuous approximation.  The exact
@@ -42,16 +42,21 @@ def _exact_scalar(lam: float) -> float:
     return float(m2 - m1 * m1)
 
 
-# ---------------------------------------------------------------------------
-# Precomputed lookup table (built once at import time)
-# ---------------------------------------------------------------------------
-
 _LUT_STEP = 0.1
 _LUT_MAX = 500.0
 _LUT_N = int(_LUT_MAX / _LUT_STEP) + 1
-_LUT_LAMBDAS = np.linspace(0.0, _LUT_MAX, _LUT_N)
-_LUT_VALUES = np.array([_exact_scalar(lam) for lam in _LUT_LAMBDAS],
-                       dtype=np.float64)
+_LUT_LAMBDAS: np.ndarray | None = None
+_LUT_VALUES: np.ndarray | None = None
+
+
+def _lookup_table() -> tuple[np.ndarray, np.ndarray]:
+    global _LUT_LAMBDAS, _LUT_VALUES
+    if _LUT_LAMBDAS is None or _LUT_VALUES is None:
+        lambdas = np.linspace(0.0, _LUT_MAX, _LUT_N)
+        values = np.array([_exact_scalar(lam) for lam in lambdas], dtype=np.float64)
+        _LUT_LAMBDAS = lambdas
+        _LUT_VALUES = values
+    return _LUT_LAMBDAS, _LUT_VALUES
 
 
 # ---------------------------------------------------------------------------
@@ -59,9 +64,9 @@ _LUT_VALUES = np.array([_exact_scalar(lam) for lam in _LUT_LAMBDAS],
 # ---------------------------------------------------------------------------
 
 def poisson_log_variance(lam: np.ndarray | float) -> np.ndarray | float:
-    r"""Exact Var[log(N+1)] for N ~ Poisson(lam), vectorized.
+    r"""Approximate Var[log(N+1)] for N ~ Poisson(lam), vectorized.
 
-    For lam <= 500: linear interpolation on the precomputed table
+    For lam <= 500: linear interpolation on a lazily built exact table
     (absolute error < 1e-4 at worst, typically < 1e-5).
     For lam > 500: trigamma(lam+1) (relative error < 1e-8).
 
@@ -89,7 +94,8 @@ def poisson_log_variance(lam: np.ndarray | float) -> np.ndarray | float:
     hi = ~lo
 
     if np.any(lo):
-        result[lo] = np.interp(flat[lo], _LUT_LAMBDAS, _LUT_VALUES)
+        lut_lambdas, lut_values = _lookup_table()
+        result[lo] = np.interp(flat[lo], lut_lambdas, lut_values)
     if np.any(hi):
         result[hi] = polygamma(1, flat[hi] + 1.0)
 

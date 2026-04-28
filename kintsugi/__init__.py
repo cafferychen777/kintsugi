@@ -2,26 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .models import TessellationResult
+
 __version__ = "0.1.0"
-
-import numpy as np
-import scipy.sparse as sp
-
-from .models import GridData, TessellationResult, validate_grid_data
-from .variogram import directional_semivariance, poisson_baseline
-from ._poisson_log_var import poisson_log_variance
-from .tensor import boundary_tensor
-from .partition import adaptive_tessellation
-from .aggregate import aggregate_counts
-from .graph import build_spatial_graph
-from .io import (
-    build_regular_grid,
-    load_10x_feature_matrix,
-    load_visium_hd,
-    load_visium_hd_from_dir,
-    parse_visium_barcode_coordinates,
-    read_tissue_positions,
-)
 
 __all__ = [
     "__version__",
@@ -44,17 +30,47 @@ __all__ = [
     "tessellate",
 ]
 
+_LAZY_EXPORTS = {
+    "GridData": (".models", "GridData"),
+    "TessellationResult": (".models", "TessellationResult"),
+    "validate_grid_data": (".models", "validate_grid_data"),
+    "build_regular_grid": (".io", "build_regular_grid"),
+    "load_10x_feature_matrix": (".io", "load_10x_feature_matrix"),
+    "load_visium_hd": (".io", "load_visium_hd"),
+    "load_visium_hd_from_dir": (".io", "load_visium_hd_from_dir"),
+    "parse_visium_barcode_coordinates": (".io", "parse_visium_barcode_coordinates"),
+    "read_tissue_positions": (".io", "read_tissue_positions"),
+    "directional_semivariance": (".variogram", "directional_semivariance"),
+    "poisson_baseline": (".variogram", "poisson_baseline"),
+    "poisson_log_variance": ("._poisson_log_var", "poisson_log_variance"),
+    "boundary_tensor": (".tensor", "boundary_tensor"),
+    "adaptive_tessellation": (".partition", "adaptive_tessellation"),
+    "aggregate_counts": (".aggregate", "aggregate_counts"),
+    "build_spatial_graph": (".graph", "build_spatial_graph"),
+}
+
+
+def __getattr__(name: str):
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from importlib import import_module
+
+    module_name, attr_name = _LAZY_EXPORTS[name]
+    value = getattr(import_module(module_name, __name__), attr_name)
+    globals()[name] = value
+    return value
+
 
 def tessellate(
-    counts: GridData | sp.spmatrix,
+    counts,
     rows: int | None = None,
     cols: int | None = None,
-    mask: np.ndarray | None = None,
+    mask=None,
     lag: int = 2,
     kappa: float = 2.0,
     min_seed_distance: int = 4,
     smooth_sigma: float = 4.0,
-) -> TessellationResult:
+) -> "TessellationResult":
     """Run the full Kintsugi pipeline: variogram -> tensor -> partition -> aggregate -> graph.
 
     Parameters
@@ -86,6 +102,8 @@ def tessellate(
         ``"adjacency"``   : csr_matrix (K, K), spatial adjacency graph
         ``"trace"``       : ndarray (rows, cols) float64, boundary-tensor trace
     """
+    from .models import GridData, TessellationResult
+
     if isinstance(counts, GridData):
         if rows is not None or cols is not None or mask is not None:
             raise ValueError(
@@ -107,17 +125,19 @@ def tessellate(
         cols = grid.cols
         mask = grid.mask
 
-    # Step 0: build UMI field on the 2D grid.
-    umi_flat = np.asarray(counts.sum(axis=1)).ravel()  # (N,)
+    import numpy as np
+
+    from .aggregate import aggregate_counts
+    from .graph import build_spatial_graph
+    from .partition import adaptive_tessellation
+    from .tensor import boundary_tensor
+    from .variogram import directional_semivariance
+
+    umi_flat = np.asarray(counts.sum(axis=1)).ravel()
     umi = umi_flat.reshape(rows, cols)
 
-    # Step 1: directional semivariance.
     excess = directional_semivariance(umi, lag=lag, mask=mask)
-
-    # Step 2: boundary tensor.
     trace, _lambda1, _lambda2, evec1 = boundary_tensor(excess)
-
-    # Step 3: adaptive tessellation.
     labels = adaptive_tessellation(
         umi, trace, evec1,
         kappa=kappa,
@@ -126,10 +146,7 @@ def tessellate(
         mask=mask,
     )
 
-    # Step 4: aggregate counts.
     residuals, areas, depths, centroids = aggregate_counts(counts, labels, mask=mask)
-
-    # Step 5: spatial graph.
     adjacency = build_spatial_graph(labels)
 
     return TessellationResult(

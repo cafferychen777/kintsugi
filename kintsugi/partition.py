@@ -240,7 +240,8 @@ def _subdivide_recursive(
         or z_vals.size < 2 * min_bins
         or depth >= _MAX_SUBDIVISION_DEPTH
     ):
-        labels[sl][region_mask] = next_label[0]
+        label_view = labels[sl]
+        label_view[region_mask] = next_label[0]
         next_label[0] += 1
         return
 
