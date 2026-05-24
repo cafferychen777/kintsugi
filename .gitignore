@@ -36,6 +36,8 @@ build/
 .ruff_cache/
 .tox/
 .nox/
+htmlcov/
+.playwright-mcp/
 
 # OS
 .DS_Store

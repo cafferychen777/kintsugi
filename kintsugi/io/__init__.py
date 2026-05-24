@@ -1,5 +1,6 @@
-"""Input adapters for normalized Kintsugi grid data."""
+"""Input/output adapters for Kintsugi grid data."""
 
+from .anndata import to_anndata
 from .grid import build_regular_grid, parse_visium_barcode_coordinates
 from .visium_hd import (
     load_10x_feature_matrix,
@@ -15,4 +16,5 @@ __all__ = [
     "load_visium_hd_from_dir",
     "parse_visium_barcode_coordinates",
     "read_tissue_positions",
+    "to_anndata",
 ]

@@ -48,6 +48,10 @@ def aggregate_counts(
         raise TypeError("counts must be a SciPy sparse matrix.")
     if not sp.isspmatrix_csr(counts):
         counts = counts.tocsr()
+    if counts.data.size and (
+        np.any(~np.isfinite(counts.data)) or np.any(counts.data < 0)
+    ):
+        raise ValueError("counts must contain only finite non-negative values.")
 
     R, C = labels.shape
     N = R * C

@@ -1,0 +1,45 @@
+Bootstrap: docker
+From: python:3.12-slim
+
+%labels
+    Author Kintsugi authors
+    Description Adaptive spatial tessellation for sub-cellular resolution transcriptomics
+
+%files
+    pyproject.toml /src/pyproject.toml
+    README.md /src/README.md
+    LICENSE /src/LICENSE
+    kintsugi /src/kintsugi
+    examples /src/examples
+
+%post
+    cd /src
+    python -m pip install --no-cache-dir --upgrade pip
+    python -m pip install --no-cache-dir build
+    python -m build --wheel
+    python -m pip install --no-cache-dir dist/*.whl
+    rm -rf /src
+    python -c "import kintsugi; print(f'kintsugi {kintsugi.__version__} OK')"
+
+%test
+python - <<'PY'
+import hashlib
+import kintsugi
+
+grid = kintsugi.make_toy_dataset()
+result = grid.tessellate()
+label_hash = hashlib.sha256(result.labels.tobytes()).hexdigest()[:16]
+assert result.n_regions == 75
+assert label_hash == "3653373eec97b137"
+print(f"kintsugi singularity test ok: {result.n_regions} regions, {label_hash}")
+PY
+
+%runscript
+    python "$@"
+
+%help
+    Kintsugi: adaptive spatial tessellation for sub-cellular transcriptomics.
+
+    Usage:
+      singularity run kintsugi.sif -m kintsugi.demo
+      singularity exec kintsugi.sif python -c "import kintsugi; print(kintsugi.__version__)"

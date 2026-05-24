@@ -25,6 +25,7 @@ from scipy.ndimage import (
     find_objects,
     watershed_ift,
 )
+from .models import _validate_positive_int
 from ._poisson_log_var import poisson_log_variance
 
 
@@ -65,8 +66,19 @@ def adaptive_tessellation(
     labels : ndarray, shape (R, C), dtype int32
         Region labels, 0-indexed.  Bins outside ``mask`` get label -1.
     """
+    min_seed_distance = _validate_positive_int("min_seed_distance", min_seed_distance)
+    kappa = _validate_nonnegative_float("kappa", kappa)
+    smooth_sigma = _validate_nonnegative_float("smooth_sigma", smooth_sigma)
+    umi = _validate_nonnegative_2d_array("umi", umi)
+    trace = _validate_nonnegative_2d_array("trace", trace)
+    evec1 = np.asarray(evec1, dtype=np.float64)
+
     if trace.shape != umi.shape or evec1.shape[:2] != umi.shape:
         raise ValueError("trace and evec1 must align with umi.")
+    if evec1.ndim != 3 or evec1.shape[2] != 2:
+        raise ValueError("evec1 must have shape (R, C, 2).")
+    if evec1.size and np.any(~np.isfinite(evec1)):
+        raise ValueError("evec1 must contain only finite values.")
 
     R, C = umi.shape
     z = np.log1p(umi.astype(np.float64))
@@ -182,6 +194,22 @@ def _poisson_stationary(z_vals: np.ndarray, umi_vals: np.ndarray, kappa: float) 
     se = np.sqrt(2.0 * gamma0 * gamma0 / (n - 1.0))
 
     return sample_var <= gamma0 + kappa * se
+
+
+def _validate_nonnegative_float(name: str, value: float) -> float:
+    value = float(value)
+    if not np.isfinite(value) or value < 0:
+        raise ValueError(f"{name} must be finite and non-negative.")
+    return value
+
+
+def _validate_nonnegative_2d_array(name: str, value: np.ndarray) -> np.ndarray:
+    arr = np.asarray(value, dtype=np.float64)
+    if arr.ndim != 2:
+        raise ValueError(f"{name} must be a 2D array.")
+    if arr.size and (np.any(~np.isfinite(arr)) or np.any(arr < 0)):
+        raise ValueError(f"{name} must contain only finite non-negative values.")
+    return arr
 
 
 def _stationarity_refinement(

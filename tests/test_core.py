@@ -57,6 +57,14 @@ def test_aggregate_counts_rejects_bad_mask_shape() -> None:
         aggregate_counts(counts, labels, mask=np.ones((3, 3), dtype=bool))
 
 
+def test_aggregate_counts_rejects_invalid_count_values() -> None:
+    counts = sp.csr_matrix(np.array([[1.0], [np.nan], [2.0], [3.0]]))
+    labels = np.zeros((2, 2), dtype=np.int32)
+
+    with pytest.raises(ValueError, match="finite non-negative"):
+        aggregate_counts(counts, labels)
+
+
 def test_build_spatial_graph_is_binary_and_compact() -> None:
     labels = np.array(
         [
@@ -98,6 +106,15 @@ def test_directional_semivariance_rejects_bad_mask_shape() -> None:
 
     with pytest.raises(ValueError, match="mask has shape"):
         directional_semivariance(umi, lag=1, mask=np.ones((2, 2), dtype=bool))
+
+
+def test_directional_semivariance_rejects_invalid_parameters_and_values() -> None:
+    with pytest.raises(ValueError, match="lag must be a positive integer"):
+        directional_semivariance(np.ones((3, 3), dtype=float), lag=0)
+    with pytest.raises(ValueError, match="finite non-negative"):
+        directional_semivariance(np.array([[1.0, -1.0]], dtype=float), lag=1)
+    with pytest.raises(TypeError, match="smooth_halfwidth must be a non-negative integer"):
+        directional_semivariance(np.ones((3, 3), dtype=float), lag=1, smooth_halfwidth=1.5)
 
 
 def test_poisson_baseline_matches_exact_variance_on_uniform_field() -> None:
@@ -143,6 +160,11 @@ def test_poisson_baseline_rejects_bad_mask_shape() -> None:
         poisson_baseline(umi, mask=np.ones((2, 2), dtype=bool))
 
 
+def test_poisson_baseline_rejects_negative_umi() -> None:
+    with pytest.raises(ValueError, match="finite non-negative"):
+        poisson_baseline(np.array([[1.0, -0.5]], dtype=float))
+
+
 def test_boundary_tensor_recovers_axis_aligned_anisotropy() -> None:
     excess = np.zeros((2, 3, 4), dtype=float)
     excess[:, :, 0] = 2.5
@@ -163,6 +185,19 @@ def test_adaptive_tessellation_rejects_misaligned_inputs() -> None:
 
     with pytest.raises(ValueError, match="must align with umi"):
         adaptive_tessellation(umi, trace, evec1)
+
+
+def test_adaptive_tessellation_rejects_invalid_parameters_and_values() -> None:
+    umi = np.ones((3, 3), dtype=float)
+    trace = np.ones((3, 3), dtype=float)
+    evec1 = np.ones((3, 3, 2), dtype=float)
+
+    with pytest.raises(ValueError, match="min_seed_distance must be a positive integer"):
+        adaptive_tessellation(umi, trace, evec1, min_seed_distance=0)
+    with pytest.raises(ValueError, match="smooth_sigma must be finite and non-negative"):
+        adaptive_tessellation(umi, trace, evec1, smooth_sigma=-1.0)
+    with pytest.raises(ValueError, match="evec1 must have shape"):
+        adaptive_tessellation(umi, trace, np.ones((3, 3), dtype=float))
 
 
 def test_validate_grid_data_rejects_negative_counts() -> None:

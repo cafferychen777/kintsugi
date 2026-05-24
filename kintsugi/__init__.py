@@ -12,6 +12,7 @@ __version__ = "0.1.0"
 __all__ = [
     "__version__",
     "GridData",
+    "TessellationReport",
     "TessellationResult",
     "build_regular_grid",
     "load_10x_feature_matrix",
@@ -27,11 +28,15 @@ __all__ = [
     "directional_semivariance",
     "poisson_baseline",
     "poisson_log_variance",
+    "make_toy_dataset",
     "tessellate",
+    "tessellation_report",
+    "to_anndata",
 ]
 
 _LAZY_EXPORTS = {
     "GridData": (".models", "GridData"),
+    "TessellationReport": (".report", "TessellationReport"),
     "TessellationResult": (".models", "TessellationResult"),
     "validate_grid_data": (".models", "validate_grid_data"),
     "build_regular_grid": (".io", "build_regular_grid"),
@@ -40,6 +45,7 @@ _LAZY_EXPORTS = {
     "load_visium_hd_from_dir": (".io", "load_visium_hd_from_dir"),
     "parse_visium_barcode_coordinates": (".io", "parse_visium_barcode_coordinates"),
     "read_tissue_positions": (".io", "read_tissue_positions"),
+    "to_anndata": (".io", "to_anndata"),
     "directional_semivariance": (".variogram", "directional_semivariance"),
     "poisson_baseline": (".variogram", "poisson_baseline"),
     "poisson_log_variance": ("._poisson_log_var", "poisson_log_variance"),
@@ -47,6 +53,8 @@ _LAZY_EXPORTS = {
     "adaptive_tessellation": (".partition", "adaptive_tessellation"),
     "aggregate_counts": (".aggregate", "aggregate_counts"),
     "build_spatial_graph": (".graph", "build_spatial_graph"),
+    "tessellation_report": (".report", "tessellation_report"),
+    "make_toy_dataset": ("._demo", "make_toy_dataset"),
 }
 
 

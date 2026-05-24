@@ -160,5 +160,6 @@ def _require_optional_dependency(module_name: str):
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
             f"{module_name} is required for Visium HD loading. Reinstall with "
-            "`pip install kintsugi`."
+            "`pip install kintsugi-st` or, from a source checkout, "
+            "`python -m pip install -e .`."
         ) from exc

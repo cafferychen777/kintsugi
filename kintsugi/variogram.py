@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.ndimage import uniform_filter
 
+from .models import _validate_positive_int
 from ._poisson_log_var import poisson_log_variance
 
 
@@ -39,6 +40,10 @@ def directional_semivariance(
     excess : ndarray, shape (R, C, D)
         Excess semivariance per direction, clipped to non-negative.
     """
+    lag = _validate_positive_int("lag", lag)
+    smooth_halfwidth = _validate_nonnegative_int("smooth_halfwidth", smooth_halfwidth)
+    umi = _validate_umi_grid(umi)
+
     z = np.log1p(umi.astype(np.float64))
     R, C = z.shape
 
@@ -112,6 +117,9 @@ def poisson_baseline(
     gamma0 : ndarray, shape (R, C)
         Expected semivariance under Poisson null.
     """
+    smooth_halfwidth = _validate_nonnegative_int("smooth_halfwidth", smooth_halfwidth)
+    umi = _validate_umi_grid(umi)
+
     umi_f = umi.astype(np.float64)
     if mask is not None:
         if mask.shape != umi_f.shape:
@@ -122,3 +130,21 @@ def poisson_baseline(
     window = 2 * smooth_halfwidth + 1
     lambda_local = uniform_filter(umi_f, size=window, mode="nearest")
     return poisson_log_variance(lambda_local)
+
+
+def _validate_umi_grid(umi: np.ndarray) -> np.ndarray:
+    arr = np.asarray(umi)
+    if arr.ndim != 2:
+        raise ValueError("umi must be a 2D array.")
+    if arr.size and (np.any(~np.isfinite(arr)) or np.any(arr < 0)):
+        raise ValueError("umi must contain only finite non-negative values.")
+    return arr
+
+
+def _validate_nonnegative_int(name: str, value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, np.integer)):
+        raise TypeError(f"{name} must be a non-negative integer.")
+    value = int(value)
+    if value < 0:
+        raise ValueError(f"{name} must be a non-negative integer.")
+    return value
