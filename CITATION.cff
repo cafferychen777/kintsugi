@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: "Kintsugi: adaptive spatial tessellation for sub-cellular resolution transcriptomics"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - family-names: Yang
+    given-names: Chen
+    orcid: "https://orcid.org/0000-0003-0329-5606"
+repository-code: "https://github.com/cafferychen777/kintsugi"
+url: "https://github.com/cafferychen777/kintsugi"
+license: MIT
+version: 0.1.1
+doi: "10.5281/zenodo.20367449"
+date-released: "2026-05-25"
+keywords:
+  - spatial transcriptomics
+  - Visium HD
+  - tessellation
+  - segmentation
+  - bioinformatics
+abstract: >-
+  Kintsugi builds adaptive spatial regions from Visium HD and other
+  regular-grid spatial transcriptomics data. It starts from a 2D bin
+  lattice and returns larger spatial regions whose boundaries follow
+  local changes in molecule density.
