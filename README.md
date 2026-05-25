@@ -99,7 +99,7 @@ python -m kintsugi.demo # module invocation
 Expected output:
 
 ```
-Kintsugi v0.1.0
+Kintsugi v0.1.1
 =======================================================
 
 1. Generating toy dataset...

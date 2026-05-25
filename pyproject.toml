@@ -1,6 +1,6 @@
 [project]
 name = "kintsugi-st"
-version = "0.1.0"
+version = "0.1.1"
 description = "Adaptive spatial tessellation for sub-cellular resolution transcriptomics"
 readme = "README.md"
 license = { file = "LICENSE" }
