@@ -129,6 +129,9 @@ def poisson_baseline(
 
     window = 2 * smooth_halfwidth + 1
     lambda_local = uniform_filter(umi_f, size=window, mode="nearest")
+    # Clamp to non-negative: uniform_filter can produce tiny negative
+    # values (~-1e-14) due to floating-point arithmetic on large grids.
+    np.maximum(lambda_local, 0.0, out=lambda_local)
     return poisson_log_variance(lambda_local)
 
 

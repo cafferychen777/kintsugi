@@ -15,7 +15,7 @@ manuscript-specific analysis.  Those choices stay downstream.
 
 ## Installation
 
-### From PyPI (available upon publication)
+### From PyPI
 
 ```bash
 pip install kintsugi-st
@@ -260,13 +260,20 @@ Measured on an Apple M1 Max (single thread, pure Python) with
 | Large | 500 × 500 | 1,000 | 194,824 | 2,936 | 0.43 s | 72 MB |
 | XL | 800 × 800 | 2,000 | 500,200 | 7,462 | 1.15 s | 298 MB |
 
-### Real Visium HD (8 µm resolution)
+### Real Visium HD (8 µm resolution, Apple M1 Max)
 
 | Tissue | Tissue bins | Regions | Time |
 | --- | --- | --- | --- |
 | Human CRC (P2_CRC) | 545,913 | 26,107 | 10–21 s |
 | Mouse brain | 393,543 | 18,673 | 6–11 s |
 | Mouse intestine | 351,817 | 17,854 | 7 s |
+
+### Real Visium HD (2 µm resolution, AMD EPYC 7763)
+
+| Tissue | Tissue bins | Regions | Time | Peak memory |
+| --- | --- | --- | --- | --- |
+| Human CRC (P2_CRC) | 8,115,564 | 25,074 | 29 s | 8.1 GB |
+| Mouse brain | 6,296,688 | 19,817 | 24 s | 6.9 GB |
 
 Memory scales primarily with `n_regions × n_genes` (the dense residual
 matrix).  Upstream gene filtering is the main memory lever for large datasets.
