@@ -287,7 +287,9 @@ def _subdivide_recursive(
     else:
         mean_ev = mean_ev / norm
 
-    proj = dy * mean_ev[0] + dx * mean_ev[1]
+    # evec1 lives in the boundary-tensor basis (x = +col, y = -row), so the
+    # (row, col) offset (dy, dx) projects as (dx, -dy) onto (mean_ev[0], mean_ev[1]).
+    proj = dx * mean_ev[0] - dy * mean_ev[1]
     median_proj = np.median(proj)
 
     half_a = proj <= median_proj

@@ -242,3 +242,39 @@ def test_tessellation_result_requires_sparse_adjacency() -> None:
 def test_boundary_tensor_requires_four_direction_input() -> None:
     with pytest.raises(ValueError, match=r"shape \(R, C, 4\)"):
         boundary_tensor(np.zeros((2, 2, 3), dtype=float))
+
+
+def test_subdivision_cuts_perpendicular_to_diagonal_eigenvector() -> None:
+    """Lock the projection convention: evec1 is (x=+col, y=-row).
+
+    A region whose primary eigenvector points along the (1, 1) gradient must be
+    bisected by a line PERPENDICULAR to it, i.e. the two halves separate along
+    ``row + col`` -- not along ``row - col`` (which a swapped or sign-wrong
+    projection would produce). Guards against the partition.py:290 family of bugs.
+    """
+    from kintsugi.partition import _subdivide_recursive
+
+    n = 10
+    rr, cc = np.mgrid[:n, :n]
+    # Strong diagonal gradient -> Var(log1p(umi)) >> Poisson null, so the region
+    # fails stationarity and is forced to bisect exactly once (min_bins=30).
+    umi = np.exp(0.6 * (rr + cc)).astype(float)
+    z = np.log1p(umi)
+    evec1 = np.empty((n, n, 2), dtype=float)
+    evec1[:, :, 0] = -0.7071  # col (x) component
+    evec1[:, :, 1] = 0.7071   # -row (y) component  == eigenvector of a (1,1) gradient
+
+    labels = np.full((n, n), -1, dtype=np.int32)
+    next_label = [0]
+    _subdivide_recursive(
+        (slice(0, n), slice(0, n)), np.ones((n, n), dtype=bool),
+        z, umi, evec1, 2.0, labels, next_label, depth=0, min_bins=30,
+    )
+
+    assert next_label[0] == 2  # exactly one bisection
+    g0, g1 = labels == 0, labels == 1
+    rc_sum, rc_diff = rr + cc, rr - cc
+    spread_along_gradient = abs(rc_sum[g0].mean() - rc_sum[g1].mean())
+    spread_along_boundary = abs(rc_diff[g0].mean() - rc_diff[g1].mean())
+    assert spread_along_gradient > 3.0
+    assert spread_along_boundary < 1.0

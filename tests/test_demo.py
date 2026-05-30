@@ -37,7 +37,7 @@ def test_toy_tessellation_deterministic() -> None:
     h1 = hashlib.sha256(r1.labels.tobytes()).hexdigest()[:16]
     h2 = hashlib.sha256(r2.labels.tobytes()).hexdigest()[:16]
     assert h1 == h2
-    assert h1 == "3653373eec97b137"
+    assert h1 == "f6e40d11efb7527d"
 
 
 def test_toy_tessellation_produces_multiple_regions() -> None:
